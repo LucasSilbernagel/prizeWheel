@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+
+
+  <style>
+
+    button {
+      border: none;
+    }
+
+#wheelOfFortune {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+}
+
+#wheel {
+  display: block;
+  width: 600px;
+  height: 600px;
+}
+
+#spin {
+  font: 1.5em/0 sans-serif;
+  user-select: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 55%;
+  left: 55%;
+  width: 20%;
+  height: 20%;
+  margin: -15%;
+  background: #fff;
+  color: #fff;
+  box-shadow: 0 0 0 8px currentColor, 0 0px 15px 5px rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  transition: 0.8s;
+}
+
+#spin::after {
+  content: "";
+  position: absolute;
+  top: -17px;
+  border: 10px solid transparent;
+  border-bottom-color: currentColor;
+  border-top: none;
+}
+
+#spin:hover,
+#spin:focus {
+  color: #000000;
+}
+
+/* Modal */
+.alertModal {
+  width: 300px;
+  text-align: center;
+  z-index: 20;
+  padding: 20px;
+  overflow: auto;
+  background: #FFFFFF;
+  top: 50%;
+  visibility: hidden;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  position: fixed;
+  border: 5px solid #000000;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  font-size: 1.2rem;
+}
+.alertModal.visibleModal {
+  visibility: visible;
+  animation-name: slideIn;
+  animation-duration: 0.5s
+}
+/* Modal Animation */
+@keyframes slideIn {
+  from {top: -800px}
+}
+.alertModalBackground {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  top: 0;
+  left: 0;
+  position: fixed;
+  z-index: 10;
+  visibility: hidden;
+}
+.alertModalBackground.visibleModal {
+  visibility: visible;
+}
+
+
+  </style>
+
+
+
+
+
+  <div id="wheelOfFortune">
+    <canvas id="wheel" height="600" width="600"></canvas>
+    <button id="spin">Spin!</button>
+  </div>
+
+  <!-- Modal -->
+  <div class="alertModal" id="alertModal">
+    <!-- Text is displayed here -->
+    <div class="alertModalText" id="alertModalText"></div>
+    <!-- Link -->
+    <a id="pageLink" href="https://lucassilbernagel.com/">Go to page</a>
+  </div>
+  <div class="alertModalBackground" id="alertModalBackground"></div>
+
+
+
+
+  <script>
+
+    const sectors = [
+        { color: "#98FB98", label: "Green & Just Recovery" },
+        { color: "#EE204D", label: "Back to Normal" },
+        { color: "#98FB98", label: "Green & Just Recovery" },
+        { color: "#EE204D", label: "Back to Normal" },
+        { color: "#98FB98", label: "Green & Just Recovery" },
+        { color: "#EE204D", label: "Back to Normal" },
+        { color: "#98FB98", label: "Green & Just Recovery" },
+        { color: "#EE204D", label: "Back to Normal" },
+      ];
+
+      const rand = (m, M) => Math.random() * (M - m) + m;
+      const tot = sectors.length;
+      const EL_spin = document.querySelector("#spin");
+      const ctx = document.querySelector("#wheel").getContext('2d');
+      const dia = ctx.canvas.width;
+      const rad = dia / 2;
+      const PI = Math.PI;
+      const TAU = 2 * PI;
+      const arc = TAU / sectors.length;
+
+      const friction = 0.991; // 0.995=soft, 0.99=mid, 0.98=hard
+      let angVel = 0; // Angular velocity
+      let ang = 0; // Angle in radians
+
+      const getIndex = () => Math.floor(tot - ang / TAU * tot) % tot;
+
+      function drawSector(sector, i) {
+        const ang = arc * i;
+        ctx.save();
+        // COLOR
+        ctx.beginPath();
+        ctx.fillStyle = sector.color;
+        ctx.moveTo(rad, rad);
+        ctx.arc(rad, rad, rad, ang, ang + arc);
+        ctx.lineTo(rad, rad);
+        ctx.fill();
+        // TEXT
+        ctx.translate(rad, rad);
+        ctx.rotate(ang + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#000000";
+        ctx.font = "bold 18px sans-serif";
+        ctx.fillText(sector.label, rad - 10, 10);
+        //
+        ctx.restore();
+      };
+
+      function rotate() {
+        const sector = sectors[getIndex()];
+        ctx.canvas.style.transform = `rotate(${ang - PI / 2}rad)`;
+        EL_spin.textContent = "SPIN!";
+        EL_spin.style.background = sector.color;
+      }
+
+      function frame() {
+        const sector = sectors[getIndex()];
+        if (!angVel) return;
+        angVel *= friction; // Decrement velocity by friction
+        if (angVel < 0.002) {
+          angVel = 0; // Bring to stop
+          if (sector.label === "Back to Normal") {
+            // alert(`${sector.label}, better luck next time!`);
+            alertModalText.innerHTML = "<h3>Back to normal. Too bad!</h3>"
+            showModal();
+          } else {
+            // alert(`${sector.label}, good job!`);
+            alertModalText.innerHTML = "<h3>Yay, a Green and Just Recovery!</h3>"
+            showModal();
+          }
+        } 
+        ang += angVel; // Update angle
+        ang %= TAU; // Normalize angle
+        rotate();
+      }
+
+      function engine() {
+        frame();
+        requestAnimationFrame(engine)
+      }
+
+      // INIT
+      sectors.forEach(drawSector);
+      rotate(); // Initial rotation
+      engine(); // Start engine
+      EL_spin.addEventListener("click", () => {
+        if (!angVel) angVel = rand(0.25, 0.35);
+      });
+
+
+
+      // Modal to display alerts
+        const alertModal = document.getElementById('alertModal');
+        // Modal background
+        const alertModalBackground = document.getElementById('alertModalBackground');
+        // Alert tex displayed here
+        const alertModalText = document.getElementById('alertModalText');
+        // Link to other page
+        const pageLInk = document.getElementById('pageLink');
+        // Function to show modal
+        const showModal = function () {
+          alertModal.classList.toggle('visibleModal');
+          alertModalBackground.classList.toggle('visibleModal');
+          // Remove background elements from tab index when modal is open
+          document.querySelectorAll('button').forEach(element => element.setAttribute("tabindex", "-1"));
+          // Trap screen reader focus in modal when open
+          document.querySelectorAll('button').forEach(element => element.setAttribute("aria-hidden", "true"));
+          // Focus on link
+          pageLink.focus();
+        }
+
+        // Media query 1
+        const mediaQuery1 = window.matchMedia("(max-width: 700px)")
+        mediaFunction1(mediaQuery1) // Call listener function at run time
+        mediaQuery1.addListener(mediaFunction1) // Attach listener function on state changes
+        function mediaFunction1(mediaQuery1) {
+          const wheel = document.getElementById('wheel');
+          if (mediaQuery1.matches) { // If media query matches
+            wheel.style.width="500px";
+            wheel.style.height="500px";
+          } else {
+            wheel.style.width = "600px";
+            wheel.style.height = "600px";
+            console.log(mediaQuery1);
+            return;
+          }
+        }
+
+        // Media query 2
+        const mediaQuery2 = window.matchMedia("(max-width: 550px)")
+          mediaFunction2(mediaQuery2) // Call listener function at run time
+          mediaQuery2.addListener(mediaFunction2) // Attach listener function on state changes
+          function mediaFunction2(mediaQuery2) {
+            const wheel = document.getElementById('wheel');
+            if (mediaQuery2.matches) { // If media query matches
+              wheel.style.width = "400px";
+              wheel.style.height = "400px";
+            } else {
+              return;
+            }
+          }
+
+          // Media query 3
+            const mediaQuery3 = window.matchMedia("(max-width: 440px)")
+            mediaFunction3(mediaQuery3) // Call listener function at run time
+            mediaQuery3.addListener(mediaFunction3) // Attach listener function on state changes
+            function mediaFunction3(mediaQuery3) {
+              const wheel = document.getElementById('wheel');
+              const spin = document.getElementById('spin');
+              if (mediaQuery3.matches) { // If media query matches
+                wheel.style.width = "300px";
+                wheel.style.height = "300px";
+                spin.style.font = "1.1em/0 sans-serif"
+              } else {
+                return;
+              }
+            }
+
+  </script>
+
+
+
+
+
+
+
+</body>
+</html>
